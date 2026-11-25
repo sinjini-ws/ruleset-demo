@@ -1,0 +1,35 @@
+name: lab
+on:
+  workflow_dispatch:
+    inputs:
+      mode: {type: choice, options: [push, apimerge, approve], required: true}
+      pr: {type: string, required: true}
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  lab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with: {ref: staging, fetch-depth: 0}
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          MODE: ${{ inputs.mode }}
+          PR: ${{ inputs.pr }}
+        run: |
+          H=$(gh pr view "$PR" --json headRefOid --jq .headRefOid)
+          gh pr view "$PR" --json state,reviewDecision,mergeStateStatus
+          case "$MODE" in
+            approve) gh pr review "$PR" --approve --body "demo approval" ;;
+            apimerge) gh pr merge "$PR" --merge --match-head-commit "$H" ;;
+            push)
+              git config user.name 'github-actions[bot]'
+              git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+              git fetch -q origin "$H"
+              git merge -q --no-ff -m "Merge demo (#$PR)" "$H"
+              git push origin HEAD:refs/heads/staging ;;
+          esac
+          gh pr view "$PR" --json state,reviewDecision,mergeStateStatus
