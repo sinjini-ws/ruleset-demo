@@ -1,0 +1,23 @@
+name: gate
+on:
+  pull_request:
+    branches: [staging]
+  pull_request_review:
+    types: [submitted]
+permissions:
+  contents: read
+  pull-requests: read
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          EV: ${{ github.event_name }}
+          RS: ${{ github.event.review.state }}
+        run: |
+          echo "event=$EV review_state=$RS"
+          gh pr view "$PR" --json state,reviewDecision,mergeStateStatus
